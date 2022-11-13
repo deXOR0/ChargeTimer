@@ -1,4 +1,5 @@
 __pycache__/
 .vscode/
 log*
+merged_log*
 time-bar.txt
