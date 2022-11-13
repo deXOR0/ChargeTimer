@@ -3,8 +3,6 @@
 from plyer import notification
 from datetime import datetime
 from better_terminal import *
-from progress.bar import ChargingBar
-from datetime import timedelta
 import time
 import os
 import sys
@@ -17,14 +15,6 @@ parser.add_argument('-s', '--shutdown', dest='shutdown', action='store_true')
 
 args = parser.parse_args()
 
-class ChargeBar(ChargingBar):
-    suffix = 'Battery %(percent).1f%% - Remaining %(time_left)s'
-    elapsed = 0
-
-    @property
-    def time_left(self):
-        return timedelta(seconds=self.elapsed)
-
 if args.shutdown:
     print('Shutdown Mode')
 else:
@@ -36,24 +26,33 @@ AUTOSAVE_INTERVAL = 60
 with open('time.txt', 'r') as file:
     charge_time = int(file.readline().strip())
 
-time_left = DEFAULT_TIME - charge_time
+def format_time(seconds):
+    hrs = seconds // 3600
+    minutes = (seconds - (hrs * 3600)) // 60
+    seconds = seconds % 60
+    return '{:02d} hour(s) {:02d} minute(s) {:02d} second(s)'.format(hrs, minutes, seconds)
 
-bar = ChargeBar('Charging', max=DEFAULT_TIME)
 
-for i in range(time_left):
-    bar.next()
+def calculate_percentage(seconds):
+    global DEFAULT_TIME
+    return ((DEFAULT_TIME - time_left) / DEFAULT_TIME) * 100
 
-for i in range(time_left, DEFAULT_TIME):
+
+time_left = charge_time
+
+while time_left >= 0:
     time.sleep(1)
-    bar.elapsed = DEFAULT_TIME - i
-    bar.next()
-    if i % AUTOSAVE_INTERVAL == 0:
+    percentage = calculate_percentage(time_left)
+    time_string = f'{percentage:.1f}% - {format_time(time_left)}, until fully charged'
+    cut_off_index = int(len(time_string) * (percentage / 100))
+    done = time_string[:cut_off_index]
+    not_done = time_string[cut_off_index:]
+    print(colored(done, 'white', 'on_green'), end='')
+    print(not_done)
+    time_left -= 1
+    if time_left % AUTOSAVE_INTERVAL == 0:
         with open('time.txt', 'w') as file:
-            file.write(str(DEFAULT_TIME - i))   
-
-bar.finish()
-
-print("")
+            file.write(str(time_left))
 
 with open('time.txt', 'w') as file:
     file.write(str(DEFAULT_TIME))
